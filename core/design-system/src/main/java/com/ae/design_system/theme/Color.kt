@@ -5,6 +5,7 @@ import androidx.compose.runtime.Immutable
 
 @Immutable
 data class AppColors(
+    val onSurface: Color,
     val primary: Color,
     val primaryVariant: Color,
     val secondary: Color,
@@ -29,6 +30,7 @@ data class AppColors(
 )
 
 val DarkColorPalette = AppColors(
+    onSurface = Color(0xFFFFFFFF),
     primary = Color(0xFFCE6A4F),
     primaryVariant = Color(0xFFFFBEAE),
     secondary = Color(0xFF4B0418),
@@ -53,6 +55,7 @@ val DarkColorPalette = AppColors(
 )
 
 val LightColorPalette = AppColors(
+    onSurface = Color(0xFF131F1F),
     primary = Color(0xFFF77653),
     primaryVariant = Color(0xFFFFBEAE),
     secondary = Color(0xFF880718),
