@@ -69,6 +69,7 @@ dependencies {
     implementation(libs.image.labeling)
     implementation(libs.image.labeling.custom)
 
+
     // ML Kit Face Detection
     implementation(libs.face.detection)
 

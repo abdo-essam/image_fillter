@@ -1,12 +1,10 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.kotlin.compose)
-
 }
 
 android {
-    namespace = "com.ae.movies"
+    namespace = "com.ae.islamicimageviewer"
     compileSdk = 35
 
     defaultConfig {
@@ -43,24 +41,24 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 
-    // Module dependencies
-    implementation(project(":core:design-system"))
-    implementation(project(":features:image-viewer"))
-    implementation(project(":core:network"))
-
-
-    // Compose dependencies
     implementation(libs.androidx.compose.ui.ui2)
-    implementation(libs.runtime)
-    implementation(libs.androidx.compose.foundation.foundation)
-    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.compose.ui.ui.tooling.preview)
+    implementation(libs.material3)
 
-    // ViewModel
-    implementation(libs.androidx.lifecycle.viewmodel.compose)
 
-    // Navigation
-    implementation(libs.androidx.navigation.compose)
 
-    // Koin
-    implementation(libs.koin.androidx.compose)
+    // Coil for image loading
+    implementation(libs.coil.compose)
+
+    // ML Kit for image labeling
+    implementation(libs.image.labeling)
+    implementation(libs.image.labeling.custom)
+
+
+
+    // For image processing
+    implementation(libs.ui.graphics)
+
+    // Coroutines
+    implementation(libs.kotlinx.coroutines.android)
 }
