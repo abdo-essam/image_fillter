@@ -26,8 +26,11 @@ data class AppColors(
     val warning: Color,
     val success: Color,
     val successVariant: Color,
-    val isLight: Boolean
-)
+    val isLight: Boolean,
+    val subtitle: Color
+) {
+
+}
 
 val DarkColorPalette = AppColors(
     onSurface = Color(0xFFFFFFFF),
@@ -51,6 +54,7 @@ val DarkColorPalette = AppColors(
     warning = Color(0xFFCFC567),
     success = Color(0xFF167A4D),
     successVariant = Color(0xFF1D1F1E),
+    subtitle = Color(0xFFB3B3B3),
     isLight = false
 )
 
@@ -76,5 +80,6 @@ val LightColorPalette = AppColors(
     warning = Color(0xFFCFC74D),
     success = Color(0xFF167A4D),
     successVariant = Color(0xFFC4EBDC),
+    subtitle = Color(0xFFB3B3B3),
     isLight = true
 )

@@ -6,6 +6,8 @@ import android.graphics.Paint
 import android.os.Build
 import coil.size.Size
 import coil.transform.Transformation
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.scale
 
 internal class BlurTransformation(
     private val radius: Float = 25f
@@ -28,7 +30,7 @@ internal class BlurTransformation(
 
     @androidx.annotation.RequiresApi(Build.VERSION_CODES.S)
     private fun blurWithRenderEffect(input: Bitmap): Bitmap {
-        val output = Bitmap.createBitmap(input.width, input.height, Bitmap.Config.ARGB_8888)
+        val output = createBitmap(input.width, input.height)
 
         val renderNode = android.graphics.RenderNode("blur")
         renderNode.setPosition(0, 0, input.width, input.height)
@@ -71,14 +73,14 @@ internal class BlurTransformation(
         val scaledWidth = (source.width * scale).toInt().coerceAtLeast(1)
         val scaledHeight = (source.height * scale).toInt().coerceAtLeast(1)
 
-        val smallBitmap = Bitmap.createScaledBitmap(source, scaledWidth, scaledHeight, true)
-        val blurredBitmap = Bitmap.createScaledBitmap(smallBitmap, source.width, source.height, true)
+        val smallBitmap = source.scale(scaledWidth, scaledHeight)
+        val blurredBitmap = smallBitmap.scale(source.width, source.height)
 
         val canvas = Canvas(output)
         canvas.drawBitmap(blurredBitmap, 0f, 0f, paint)
 
         // Apply multiple passes for stronger blur
-        val tempBitmap = Bitmap.createBitmap(source.width, source.height, Bitmap.Config.ARGB_8888)
+        val tempBitmap = createBitmap(source.width, source.height)
         val tempCanvas = Canvas(tempBitmap)
 
         paint.alpha = 180

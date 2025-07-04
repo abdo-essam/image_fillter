@@ -34,8 +34,8 @@ internal class ContentFilter {
     private val femaleIndicators = setOf(
         "woman", "women", "girl", "female", "lady", "ladies",
         "dress", "skirt", "blouse", "makeup", "lipstick",
-        "earrings", "necklace", "jewelry", "handbag",
-        "hair", "long hair", "hairstyle", "ponytail", "braid"
+        "earrings", "jewelry", "handbag",
+         "long hair", "hairstyle", "ponytail", "braid"
     )
 
     // Add male indicators to explicitly identify males
@@ -139,7 +139,7 @@ internal class ContentFilter {
         // Check for female indicators
         val hasFemaleLabels = labels.any { label ->
             femaleIndicators.any { indicator ->
-                label.text.contains(indicator, ignoreCase = true) && label.confidence > 0.5f
+                label.text.contains(indicator, ignoreCase = true) && label.confidence > 0.1f
             }
         }
 

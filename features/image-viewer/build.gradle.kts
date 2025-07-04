@@ -2,7 +2,6 @@ plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-
 }
 
 android {
@@ -37,6 +36,10 @@ android {
     kotlinOptions {
         jvmTarget = "11"
     }
+
+    aaptOptions {
+        noCompress("tflite")
+    }
 }
 
 dependencies {
@@ -65,13 +68,17 @@ dependencies {
     // Coil
     implementation(libs.coil.compose)
 
+    // TensorFlow Lite
+    implementation(libs.tensorflow.lite.v2140)
+    implementation(libs.tensorflow.lite.support.v044)
+
+    // ML Kit Face Detection
+    implementation(libs.face.detection)
+
     // ML Kit for image labeling
     implementation(libs.image.labeling)
     implementation(libs.image.labeling.custom)
 
-
-    // ML Kit Face Detection
-    implementation(libs.face.detection)
 
     // Coroutines support for Play Services
     implementation(libs.kotlinx.coroutines.play.services)
@@ -80,4 +87,10 @@ dependencies {
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.ui.test.junit4)
+
+
+    implementation(libs.tensorflow.lite)
+    implementation(libs.tensorflow.lite.support)
+    implementation(libs.tensorflow.lite.gpu)
+
 }

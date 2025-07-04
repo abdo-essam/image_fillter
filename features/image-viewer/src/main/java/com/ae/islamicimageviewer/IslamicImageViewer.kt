@@ -1,42 +1,139 @@
 package com.ae.islamicimageviewer
 
-
-import androidx.compose.runtime.Composable
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImagePainter
+import coil.compose.rememberAsyncImagePainter
+import coil.request.ImageRequest
+import kotlinx.coroutines.launch
 
 /**
- * Public API for Islamic Image Viewer Library
+ * A Composable that displays images with automatic content moderation
+ * for Islamic cultural sensitivity. Images containing women will be
+ * automatically blurred.
  */
-object IslamicImageViewer {
+@Composable
+fun IslamicImageViewer(
+    model: Any?,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Fit,
+    onError: ((Throwable) -> Unit)? = null,
+    onImageFiltered: ((reason: String) -> Unit)? = null,
+    onImageApproved: (() -> Unit)? = null,
+    enableFilter: Boolean = true
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var shouldBlur by remember { mutableStateOf(false) }
+    var isProcessing by remember { mutableStateOf(true) }
 
-    /**
-     * Creates an Islamic-compliant image viewer that automatically filters
-     * potentially inappropriate content.
-     *
-     * @param imageUrl The URL or resource identifier for the image
-     * @param modifier Modifier to be applied to the image
-     * @param contentDescription Content description for accessibility
-     * @param contentScale How the image should be scaled
-     * @param enableContentFiltering Whether to enable automatic content filtering
-     * @param onContentFiltered Callback when content is filtered (true when filtered)
-     */
-    @Composable
-    fun Image(
-        imageUrl: Any?,
-        modifier: Modifier = Modifier,
-        contentDescription: String? = null,
-        contentScale: ContentScale = ContentScale.Crop,
-        enableContentFiltering: Boolean = true,
-        onContentFiltered: ((Boolean) -> Unit)? = null
-    ) {
-        IslamicImage(
-            imageUrl = imageUrl,
-            modifier = modifier,
-            contentDescription = contentDescription,
-            contentScale = contentScale,
-            enableContentFiltering = enableContentFiltering,
-            onContentFiltered = onContentFiltered
-        )
+    val imageProcessor = remember {
+        if (enableFilter) ImageProcessor(context) else null
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            imageProcessor?.cleanup()
+        }
+    }
+
+    val painter = rememberAsyncImagePainter(
+        model = ImageRequest.Builder(context)
+            .data(model)
+            .crossfade(true)
+            .build(),
+        onSuccess = { state ->
+            if (enableFilter) {
+                scope.launch {
+                    try {
+                        isProcessing = true
+                        val drawable = state.result.drawable
+                        val bitmap = drawable.toBitmap()
+
+                        val result = imageProcessor?.processImage(bitmap)
+                        shouldBlur = result?.shouldBlur ?: false
+
+                        if (shouldBlur) {
+                            onImageFiltered?.invoke(result?.reason ?: "Content filtered")
+                        } else {
+                            onImageApproved?.invoke()
+                        }
+                    } catch (e: Exception) {
+                        onError?.invoke(e)
+                        shouldBlur = false
+                    } finally {
+                        isProcessing = false
+                    }
+                }
+            } else {
+                isProcessing = false
+                onImageApproved?.invoke()
+            }
+        },
+        onError = { state ->
+            isProcessing = false
+            onError?.invoke(state.result.throwable)
+        }
+    )
+
+    Box(modifier = modifier) {
+        // Capture the state to avoid smart cast issues
+        when (val state = painter.state) {
+            is AsyncImagePainter.State.Loading -> {
+                CircularProgressIndicator(
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            }
+            is AsyncImagePainter.State.Success -> {
+                Image(
+                    painter = painter,
+                    contentDescription = contentDescription,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .then(
+                            if (shouldBlur && !isProcessing) {
+                                Modifier.blur(radius = 20.dp)
+                            } else {
+                                Modifier
+                            }
+                        ),
+                    contentScale = contentScale,
+                    colorFilter = if (shouldBlur && !isProcessing) {
+                        ColorFilter.colorMatrix(
+                            ColorMatrix().apply {
+                                setToSaturation(0.3f)
+                            }
+                        )
+                    } else null
+                )
+
+                if (isProcessing) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+            }
+            is AsyncImagePainter.State.Error -> {
+                // Now we can safely access the error
+                LaunchedEffect(state) {
+                    onError?.invoke(state.result.throwable)
+                }
+            }
+            is AsyncImagePainter.State.Empty -> {
+                // Empty state - nothing to show
+            }
+        }
     }
 }

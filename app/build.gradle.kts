@@ -42,6 +42,10 @@ android {
             excludes += "/META-INF/INDEX.LIST"
         }
     }
+
+    aaptOptions {
+        noCompress += "tflite"
+    }
 }
 
 dependencies {
@@ -65,4 +69,5 @@ dependencies {
     // Module dependencies
     implementation(project(":presentation:movies"))
     implementation(project(":core:design-system"))
+    implementation(project(":features:image-viewer"))
 }
