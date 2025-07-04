@@ -12,11 +12,7 @@ internal fun Drawable.toBitmap(): Bitmap {
         return bitmap
     }
 
-    val bitmap = Bitmap.createBitmap(
-        intrinsicWidth,
-        intrinsicHeight,
-        Bitmap.Config.ARGB_8888
-    )
+    val bitmap = createBitmap(intrinsicWidth, intrinsicHeight)
 
     val canvas = Canvas(bitmap)
     setBounds(0, 0, canvas.width, canvas.height)

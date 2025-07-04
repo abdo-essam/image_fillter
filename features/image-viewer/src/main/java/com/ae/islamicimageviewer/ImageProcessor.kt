@@ -4,8 +4,6 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.util.Log
 import com.ae.islamicimageviewer.internal.FaceDetector
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 private const val TAG = "ImageProcessor"
 
@@ -78,7 +76,7 @@ internal class ImageProcessor(private val context: Context) {
     private fun cropFace(bitmap: Bitmap, face: FaceDetector.Face): Bitmap {
         val rect = face.boundingBox
 
-        // Add some padding to the face crop
+
         val padding = (rect.width() * 0.2).toInt()
 
         val left = (rect.left - padding).coerceAtLeast(0)

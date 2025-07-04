@@ -11,13 +11,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
-import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import coil.compose.AsyncImagePainter
-import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import coil.request.SuccessResult
 import kotlinx.coroutines.Dispatchers
@@ -28,7 +25,7 @@ private const val TAG = "IslamicImageViewer"
 
 @Composable
 fun IslamicImageViewer(
-    model: Any?,
+    url: String,
     contentDescription: String?,
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Fit,
@@ -39,11 +36,14 @@ fun IslamicImageViewer(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var shouldBlur by remember { mutableStateOf(false) }
-    var isProcessing by remember { mutableStateOf(false) }
-    var imageLoaded by remember { mutableStateOf(false) }
 
-    Log.d(TAG, "IslamicImageViewer composing for model: $model")
+    // State to track processing status
+    var processingState by remember(url) {
+        mutableStateOf(ProcessingState.NOT_STARTED)
+    }
+    var shouldBlur by remember(url) { mutableStateOf(false) }
+
+    Log.d(TAG, "IslamicImageViewer composing for url: $url, state: $processingState")
 
     val imageProcessor = remember {
         if (enableFilter) {
@@ -72,22 +72,26 @@ fun IslamicImageViewer(
     Box(modifier = modifier) {
         AsyncImage(
             model = ImageRequest.Builder(context)
-                .data(model)
+                .data(url)
                 .crossfade(true)
                 .allowHardware(false)
                 .listener(
                     onStart = {
-                        Log.d(TAG, "Image loading started: $model")
+                        Log.d(TAG, "Image loading started: $url")
                     },
                     onSuccess = { request, result ->
-                        Log.d(TAG, "Image loaded successfully: $model")
-                        imageLoaded = true
+                        Log.d(TAG, "Image loaded successfully: $url")
 
-                        if (enableFilter && imageProcessor != null) {
+                        // Only process if we haven't processed this image yet
+                        if (processingState == ProcessingState.NOT_STARTED &&
+                            enableFilter &&
+                            imageProcessor != null) {
+
+                            processingState = ProcessingState.PROCESSING
+
                             scope.launch {
                                 try {
-                                    isProcessing = true
-                                    Log.d(TAG, "Starting processing")
+                                    Log.d(TAG, "Starting one-time processing for: $url")
 
                                     // Get bitmap from result
                                     val bitmap = (result as? SuccessResult)?.drawable?.toBitmap()
@@ -101,6 +105,10 @@ fun IslamicImageViewer(
                                         Log.d(TAG, "Processing complete: shouldBlur=${processingResult.shouldBlur}")
                                         shouldBlur = processingResult.shouldBlur
 
+                                        // Mark as completed
+                                        processingState = ProcessingState.COMPLETED
+
+                                        // Call appropriate callback
                                         if (shouldBlur) {
                                             onImageFiltered?.invoke(processingResult.reason ?: "Content filtered")
                                         } else {
@@ -108,22 +116,24 @@ fun IslamicImageViewer(
                                         }
                                     } else {
                                         Log.e(TAG, "Failed to get bitmap from drawable")
+                                        processingState = ProcessingState.ERROR
                                         onError?.invoke(Exception("Failed to process image"))
                                     }
                                 } catch (e: Exception) {
                                     Log.e(TAG, "Error during processing", e)
+                                    processingState = ProcessingState.ERROR
                                     onError?.invoke(e)
-                                } finally {
-                                    isProcessing = false
                                 }
                             }
-                        } else {
-                            Log.d(TAG, "Filter disabled or processor null")
+                        } else if (!enableFilter) {
+                            // If filter is disabled, mark as completed immediately
+                            processingState = ProcessingState.COMPLETED
                             onImageApproved?.invoke()
                         }
                     },
                     onError = { request, error ->
                         Log.e(TAG, "Image loading failed: ${error.throwable.message}")
+                        processingState = ProcessingState.ERROR
                         onError?.invoke(error.throwable)
                     }
                 )
@@ -133,13 +143,13 @@ fun IslamicImageViewer(
             modifier = Modifier
                 .fillMaxSize()
                 .then(
-                    if (shouldBlur && !isProcessing && imageLoaded) {
+                    if (shouldBlur && processingState == ProcessingState.COMPLETED) {
                         Modifier.blur(radius = 20.dp)
                     } else {
                         Modifier
                     }
                 ),
-            colorFilter = if (shouldBlur && !isProcessing && imageLoaded) {
+            colorFilter = if (shouldBlur && processingState == ProcessingState.COMPLETED) {
                 ColorFilter.colorMatrix(
                     ColorMatrix().apply {
                         setToSaturation(0.3f)
@@ -148,10 +158,18 @@ fun IslamicImageViewer(
             } else null
         )
 
-        if (isProcessing || !imageLoaded) {
+        // Show loading indicator only while processing
+        if (processingState == ProcessingState.PROCESSING) {
             CircularProgressIndicator(
                 modifier = Modifier.align(Alignment.Center)
             )
         }
     }
+}
+
+private enum class ProcessingState {
+    NOT_STARTED,
+    PROCESSING,
+    COMPLETED,
+    ERROR
 }
