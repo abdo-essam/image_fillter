@@ -21,7 +21,7 @@ import com.ae.islamicimageviewer.IslamicImageViewer
 fun ImageViewerTestScreen() {
     val testImages = listOf(
         TestImage("https://images.pexels.com/photos/1130626/pexels-photo-1130626.jpeg", "Female Portrait 4"),
-/*      TestImage("https://i0.wp.com/digital-photography-school.com/wp-content/uploads/2018/10/taking-beautiful-photos-of-nature-2.jpg", label = "Nature"),
+        TestImage("https://i0.wp.com/digital-photography-school.com/wp-content/uploads/2018/10/taking-beautiful-photos-of-nature-2.jpg", label = "Nature"),
         TestImage("https://images.unsplash.com/photo-1524504388940-b1c1722653e1", "Woman Photo"),
         TestImage("https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=300&fit=crop", "Woman Portrait"),
         TestImage("https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop", "Man Portrait"),
@@ -32,7 +32,7 @@ fun ImageViewerTestScreen() {
         TestImage("https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg", "Male Portrait 1"),
         TestImage("https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg", "Female Portrait 2"),
         TestImage("https://images.pexels.com/photos/697509/pexels-photo-697509.jpeg", "Male Portrait 2"),
-        TestImage("https://images.pexels.com/photos/91227/pexels-photo-91227.jpeg", "Male Portrait 3")*/
+        TestImage("https://images.pexels.com/photos/91227/pexels-photo-91227.jpeg", "Male Portrait 3")
     )
 
     Column(
