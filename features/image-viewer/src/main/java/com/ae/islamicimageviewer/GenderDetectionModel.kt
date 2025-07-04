@@ -25,7 +25,9 @@ internal class GenderDetectionModel(context: Context) {
             Log.d(TAG, "Interpreter created successfully")
 
             imageProcessor = ImageProcessor.Builder()
+                // Resize to 128x128 as expected by the model
                 .add(ResizeOp(128, 128, ResizeOp.ResizeMethod.BILINEAR))
+                // Normalize pixel values to [0, 1] range
                 .add(NormalizeOp(0f, 255f))
                 .build()
         } catch (e: Exception) {

@@ -13,7 +13,7 @@ import kotlin.coroutines.resumeWithException
 
 internal class FaceDetector {
     private val options = FaceDetectorOptions.Builder()
-        .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
+        .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
         .setContourMode(FaceDetectorOptions.CONTOUR_MODE_NONE)
         .build()
 
