@@ -20,6 +20,7 @@ import com.ae.islamicimageviewer.IslamicImageViewer
 @Composable
 fun ImageViewerTestScreen() {
     val testImages = listOf(
+        TestImage("https://i0.wp.com/digital-photography-school.com/wp-content/uploads/2018/10/taking-beautiful-photos-of-nature-2.jpg", label = "Nature"),
         TestImage("https://images.pexels.com/photos/1130626/pexels-photo-1130626.jpeg", "Female Portrait 4"),
         TestImage("https://images.unsplash.com/photo-1524504388940-b1c1722653e1", "Woman Photo"),
         TestImage("https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=300&fit=crop", "Woman Portrait"),

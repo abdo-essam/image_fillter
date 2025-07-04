@@ -1,5 +1,6 @@
 package com.ae.islamicimageviewer
 
+// UI and Android dependencies
 import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
@@ -21,8 +22,21 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+// Log tag for debugging
 private const val TAG = "IslamicImageViewer"
 
+/**
+ * Custom image viewer that optionally applies a gender-based blur filter.
+ *
+ * @param url The image URL.
+ * @param contentDescription Description for accessibility.
+ * @param modifier Modifier to style the Composable.
+ * @param contentScale How the image should scale inside its bounds.
+ * @param onError Callback when any error occurs (loading or processing).
+ * @param onImageFiltered Callback when image is filtered (e.g., contains female faces).
+ * @param onImageApproved Callback when image passes without filtering.
+ * @param enableFilter Enables or disables the gender-based filtering logic.
+ */
 @Composable
 fun IslamicImageViewer(
     url: String,
@@ -37,14 +51,17 @@ fun IslamicImageViewer(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    // State to track processing status
+    // State tracking image processing phase
     var processingState by remember(url) {
         mutableStateOf(ProcessingState.NOT_STARTED)
     }
+
+    // Whether the image should be blurred based on detection
     var shouldBlur by remember(url) { mutableStateOf(false) }
 
     Log.d(TAG, "IslamicImageViewer composing for url: $url, state: $processingState")
 
+    // Lazily initialize the ImageProcessor only once (if filter is enabled)
     val imageProcessor = remember {
         if (enableFilter) {
             try {
@@ -57,11 +74,10 @@ fun IslamicImageViewer(
                 onError?.invoke(e)
                 null
             }
-        } else {
-            null
-        }
+        } else null
     }
 
+    // Cleanup resources when this composable leaves composition
     DisposableEffect(imageProcessor) {
         onDispose {
             Log.d(TAG, "Disposing ImageProcessor")
@@ -69,56 +85,63 @@ fun IslamicImageViewer(
         }
     }
 
+    // UI container for image and progress indicator
     Box(modifier = modifier) {
+
+        // Coil's AsyncImage loads the image asynchronously
         AsyncImage(
             model = ImageRequest.Builder(context)
                 .data(url)
                 .crossfade(true)
                 .allowHardware(false)
                 .listener(
+                    // Called when image loading starts
                     onStart = {
                         Log.d(TAG, "Image loading started: $url")
                     },
+
+                    // Called when image is successfully loaded
                     onSuccess = { request, result ->
                         Log.d(TAG, "Image loaded successfully: $url")
 
-                        // Only process if we haven't processed this image yet
+                        // Process image only once and if filtering is enabled
                         if (processingState == ProcessingState.NOT_STARTED &&
                             enableFilter &&
-                            imageProcessor != null) {
-
+                            imageProcessor != null
+                        ) {
                             processingState = ProcessingState.PROCESSING
 
+                            // Start coroutine to process image off the main thread
                             scope.launch {
                                 try {
                                     Log.d(TAG, "Starting one-time processing for: $url")
 
-                                    // Get bitmap from result
+                                    // Extract bitmap from the result drawable
                                     val bitmap = (result as? SuccessResult)?.drawable?.toBitmap()
                                     if (bitmap != null) {
                                         Log.d(TAG, "Bitmap obtained: ${bitmap.width}x${bitmap.height}")
 
+                                        // Run gender detection in background thread
                                         val processingResult = withContext(Dispatchers.Default) {
                                             imageProcessor.processImage(bitmap)
                                         }
 
-                                        Log.d(TAG, "Processing complete: shouldBlur=${processingResult.shouldBlur}")
                                         shouldBlur = processingResult.shouldBlur
-
-                                        // Mark as completed
                                         processingState = ProcessingState.COMPLETED
 
-                                        // Call appropriate callback
+                                        // Fire appropriate callback
                                         if (shouldBlur) {
                                             onImageFiltered?.invoke(processingResult.reason ?: "Content filtered")
                                         } else {
                                             onImageApproved?.invoke()
                                         }
+
                                     } else {
                                         Log.e(TAG, "Failed to get bitmap from drawable")
                                         processingState = ProcessingState.ERROR
                                         onError?.invoke(Exception("Failed to process image"))
                                     }
+
                                 } catch (e: Exception) {
                                     Log.e(TAG, "Error during processing", e)
                                     processingState = ProcessingState.ERROR
@@ -126,11 +149,13 @@ fun IslamicImageViewer(
                                 }
                             }
                         } else if (!enableFilter) {
-                            // If filter is disabled, mark as completed immediately
+                            // If filtering is disabled, mark processing as done immediately
                             processingState = ProcessingState.COMPLETED
                             onImageApproved?.invoke()
                         }
                     },
+
+                    // Called if the image loading fails
                     onError = { request, error ->
                         Log.e(TAG, "Image loading failed: ${error.throwable.message}")
                         processingState = ProcessingState.ERROR
@@ -138,17 +163,23 @@ fun IslamicImageViewer(
                     }
                 )
                 .build(),
+
+            // Content description for accessibility
             contentDescription = contentDescription,
+
+            // How the image scales
             contentScale = contentScale,
+
+            // Image modifier: fills the parent, applies blur if needed
             modifier = Modifier
                 .fillMaxSize()
                 .then(
                     if (shouldBlur && processingState == ProcessingState.COMPLETED) {
                         Modifier.blur(radius = 20.dp)
-                    } else {
-                        Modifier
-                    }
+                    } else Modifier
                 ),
+
+            // Optional desaturation color filter if image is blurred
             colorFilter = if (shouldBlur && processingState == ProcessingState.COMPLETED) {
                 ColorFilter.colorMatrix(
                     ColorMatrix().apply {
@@ -158,7 +189,7 @@ fun IslamicImageViewer(
             } else null
         )
 
-        // Show loading indicator only while processing
+        // Show a loading spinner in the center while the image is being analyzed
         if (processingState == ProcessingState.PROCESSING) {
             CircularProgressIndicator(
                 modifier = Modifier.align(Alignment.Center)
@@ -167,9 +198,10 @@ fun IslamicImageViewer(
     }
 }
 
+// Enum representing the internal state of the image processing
 private enum class ProcessingState {
-    NOT_STARTED,
-    PROCESSING,
-    COMPLETED,
-    ERROR
+    NOT_STARTED, // Initial state before any work
+    PROCESSING,  // Actively detecting faces and gender
+    COMPLETED,   // Processing completed (blur or approve)
+    ERROR        // Error occurred during processing
 }
