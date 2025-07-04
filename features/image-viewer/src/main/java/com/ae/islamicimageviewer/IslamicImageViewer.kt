@@ -1,5 +1,6 @@
 package com.ae.islamicimageviewer
 
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,7 +17,10 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+
+private const val TAG = "IslamicImageViewer"
 
 /**
  * A Composable that displays images with automatic content moderation
@@ -40,49 +44,76 @@ fun IslamicImageViewer(
     var isProcessing by remember { mutableStateOf(true) }
 
     val imageProcessor = remember {
-        if (enableFilter) ImageProcessor(context) else null
+        if (enableFilter) {
+            Log.d(TAG, "Creating ImageProcessor")
+            try {
+                ImageProcessor(context)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to create ImageProcessor", e)
+                null
+            }
+        } else {
+            null
+        }
     }
 
     DisposableEffect(Unit) {
         onDispose {
+            Log.d(TAG, "Disposing ImageProcessor")
             imageProcessor?.cleanup()
         }
     }
+
+    Log.d(TAG, "Loading image: $model")
 
     val painter = rememberAsyncImagePainter(
         model = ImageRequest.Builder(context)
             .data(model)
             .crossfade(true)
+            .allowHardware(false) // Disable hardware bitmaps for ML processing
             .build(),
         onSuccess = { state ->
-            if (enableFilter) {
-                scope.launch {
+            Log.d(TAG, "Image loaded successfully: $model")
+            if (enableFilter && imageProcessor != null) {
+                scope.launch(Dispatchers.Default) {
                     try {
                         isProcessing = true
+                        Log.d(TAG, "Starting image processing for: $model")
+
                         val drawable = state.result.drawable
                         val bitmap = drawable.toBitmap()
+                        Log.d(TAG, "Bitmap created: ${bitmap.width}x${bitmap.height}")
 
-                        val result = imageProcessor?.processImage(bitmap)
-                        shouldBlur = result?.shouldBlur ?: false
+                        val result = imageProcessor.processImage(bitmap)
+                        Log.d(TAG, "Processing result: shouldBlur=${result.shouldBlur}, reason=${result.reason}")
 
-                        if (shouldBlur) {
-                            onImageFiltered?.invoke(result?.reason ?: "Content filtered")
-                        } else {
-                            onImageApproved?.invoke()
+                        shouldBlur = result.shouldBlur
+
+                        scope.launch(Dispatchers.Main) {
+                            if (shouldBlur) {
+                                onImageFiltered?.invoke(result.reason ?: "Content filtered")
+                            } else {
+                                onImageApproved?.invoke()
+                            }
                         }
                     } catch (e: Exception) {
-                        onError?.invoke(e)
+                        Log.e(TAG, "Error processing image", e)
+                        scope.launch(Dispatchers.Main) {
+                            onError?.invoke(e)
+                        }
                         shouldBlur = false
                     } finally {
                         isProcessing = false
                     }
                 }
             } else {
+                Log.d(TAG, "Filter disabled or processor null, approving image")
                 isProcessing = false
                 onImageApproved?.invoke()
             }
         },
         onError = { state ->
+            Log.e(TAG, "Image loading error: ${state.result.throwable.message}")
             isProcessing = false
             onError?.invoke(state.result.throwable)
         }
@@ -92,11 +123,13 @@ fun IslamicImageViewer(
         // Capture the state to avoid smart cast issues
         when (val state = painter.state) {
             is AsyncImagePainter.State.Loading -> {
+                Log.d(TAG, "State: Loading")
                 CircularProgressIndicator(
                     modifier = Modifier.align(Alignment.Center)
                 )
             }
             is AsyncImagePainter.State.Success -> {
+                Log.d(TAG, "State: Success, isProcessing=$isProcessing, shouldBlur=$shouldBlur")
                 Image(
                     painter = painter,
                     contentDescription = contentDescription,
@@ -126,13 +159,13 @@ fun IslamicImageViewer(
                 }
             }
             is AsyncImagePainter.State.Error -> {
-                // Now we can safely access the error
+                Log.e(TAG, "State: Error - ${state.result.throwable.message}")
                 LaunchedEffect(state) {
                     onError?.invoke(state.result.throwable)
                 }
             }
             is AsyncImagePainter.State.Empty -> {
-                // Empty state - nothing to show
+                Log.d(TAG, "State: Empty")
             }
         }
     }
