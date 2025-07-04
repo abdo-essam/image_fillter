@@ -11,22 +11,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
+import coil.request.SuccessResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private const val TAG = "IslamicImageViewer"
 
-/**
- * A Composable that displays images with automatic content moderation
- * for Islamic cultural sensitivity. Images containing women will be
- * automatically blurred.
- */
 @Composable
 fun IslamicImageViewer(
     model: Any?,
@@ -41,15 +40,21 @@ fun IslamicImageViewer(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var shouldBlur by remember { mutableStateOf(false) }
-    var isProcessing by remember { mutableStateOf(true) }
+    var isProcessing by remember { mutableStateOf(false) }
+    var imageLoaded by remember { mutableStateOf(false) }
+
+    Log.d(TAG, "IslamicImageViewer composing for model: $model")
 
     val imageProcessor = remember {
         if (enableFilter) {
-            Log.d(TAG, "Creating ImageProcessor")
             try {
-                ImageProcessor(context)
+                Log.d(TAG, "Creating ImageProcessor")
+                ImageProcessor(context).also {
+                    Log.d(TAG, "ImageProcessor created successfully")
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to create ImageProcessor", e)
+                onError?.invoke(e)
                 null
             }
         } else {
@@ -57,116 +62,96 @@ fun IslamicImageViewer(
         }
     }
 
-    DisposableEffect(Unit) {
+    DisposableEffect(imageProcessor) {
         onDispose {
             Log.d(TAG, "Disposing ImageProcessor")
             imageProcessor?.cleanup()
         }
     }
 
-    Log.d(TAG, "Loading image: $model")
-
-    val painter = rememberAsyncImagePainter(
-        model = ImageRequest.Builder(context)
-            .data(model)
-            .crossfade(true)
-            .allowHardware(false) // Disable hardware bitmaps for ML processing
-            .build(),
-        onSuccess = { state ->
-            Log.d(TAG, "Image loaded successfully: $model")
-            if (enableFilter && imageProcessor != null) {
-                scope.launch(Dispatchers.Default) {
-                    try {
-                        isProcessing = true
-                        Log.d(TAG, "Starting image processing for: $model")
-
-                        val drawable = state.result.drawable
-                        val bitmap = drawable.toBitmap()
-                        Log.d(TAG, "Bitmap created: ${bitmap.width}x${bitmap.height}")
-
-                        val result = imageProcessor.processImage(bitmap)
-                        Log.d(TAG, "Processing result: shouldBlur=${result.shouldBlur}, reason=${result.reason}")
-
-                        shouldBlur = result.shouldBlur
-
-                        scope.launch(Dispatchers.Main) {
-                            if (shouldBlur) {
-                                onImageFiltered?.invoke(result.reason ?: "Content filtered")
-                            } else {
-                                onImageApproved?.invoke()
-                            }
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error processing image", e)
-                        scope.launch(Dispatchers.Main) {
-                            onError?.invoke(e)
-                        }
-                        shouldBlur = false
-                    } finally {
-                        isProcessing = false
-                    }
-                }
-            } else {
-                Log.d(TAG, "Filter disabled or processor null, approving image")
-                isProcessing = false
-                onImageApproved?.invoke()
-            }
-        },
-        onError = { state ->
-            Log.e(TAG, "Image loading error: ${state.result.throwable.message}")
-            isProcessing = false
-            onError?.invoke(state.result.throwable)
-        }
-    )
-
     Box(modifier = modifier) {
-        // Capture the state to avoid smart cast issues
-        when (val state = painter.state) {
-            is AsyncImagePainter.State.Loading -> {
-                Log.d(TAG, "State: Loading")
-                CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            }
-            is AsyncImagePainter.State.Success -> {
-                Log.d(TAG, "State: Success, isProcessing=$isProcessing, shouldBlur=$shouldBlur")
-                Image(
-                    painter = painter,
-                    contentDescription = contentDescription,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .then(
-                            if (shouldBlur && !isProcessing) {
-                                Modifier.blur(radius = 20.dp)
-                            } else {
-                                Modifier
-                            }
-                        ),
-                    contentScale = contentScale,
-                    colorFilter = if (shouldBlur && !isProcessing) {
-                        ColorFilter.colorMatrix(
-                            ColorMatrix().apply {
-                                setToSaturation(0.3f)
-                            }
-                        )
-                    } else null
-                )
+        AsyncImage(
+            model = ImageRequest.Builder(context)
+                .data(model)
+                .crossfade(true)
+                .allowHardware(false)
+                .listener(
+                    onStart = {
+                        Log.d(TAG, "Image loading started: $model")
+                    },
+                    onSuccess = { request, result ->
+                        Log.d(TAG, "Image loaded successfully: $model")
+                        imageLoaded = true
 
-                if (isProcessing) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
-            }
-            is AsyncImagePainter.State.Error -> {
-                Log.e(TAG, "State: Error - ${state.result.throwable.message}")
-                LaunchedEffect(state) {
-                    onError?.invoke(state.result.throwable)
-                }
-            }
-            is AsyncImagePainter.State.Empty -> {
-                Log.d(TAG, "State: Empty")
-            }
+                        if (enableFilter && imageProcessor != null) {
+                            scope.launch {
+                                try {
+                                    isProcessing = true
+                                    Log.d(TAG, "Starting processing")
+
+                                    // Get bitmap from result
+                                    val bitmap = (result as? SuccessResult)?.drawable?.toBitmap()
+                                    if (bitmap != null) {
+                                        Log.d(TAG, "Bitmap obtained: ${bitmap.width}x${bitmap.height}")
+
+                                        val processingResult = withContext(Dispatchers.Default) {
+                                            imageProcessor.processImage(bitmap)
+                                        }
+
+                                        Log.d(TAG, "Processing complete: shouldBlur=${processingResult.shouldBlur}")
+                                        shouldBlur = processingResult.shouldBlur
+
+                                        if (shouldBlur) {
+                                            onImageFiltered?.invoke(processingResult.reason ?: "Content filtered")
+                                        } else {
+                                            onImageApproved?.invoke()
+                                        }
+                                    } else {
+                                        Log.e(TAG, "Failed to get bitmap from drawable")
+                                        onError?.invoke(Exception("Failed to process image"))
+                                    }
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Error during processing", e)
+                                    onError?.invoke(e)
+                                } finally {
+                                    isProcessing = false
+                                }
+                            }
+                        } else {
+                            Log.d(TAG, "Filter disabled or processor null")
+                            onImageApproved?.invoke()
+                        }
+                    },
+                    onError = { request, error ->
+                        Log.e(TAG, "Image loading failed: ${error.throwable.message}")
+                        onError?.invoke(error.throwable)
+                    }
+                )
+                .build(),
+            contentDescription = contentDescription,
+            contentScale = contentScale,
+            modifier = Modifier
+                .fillMaxSize()
+                .then(
+                    if (shouldBlur && !isProcessing && imageLoaded) {
+                        Modifier.blur(radius = 20.dp)
+                    } else {
+                        Modifier
+                    }
+                ),
+            colorFilter = if (shouldBlur && !isProcessing && imageLoaded) {
+                ColorFilter.colorMatrix(
+                    ColorMatrix().apply {
+                        setToSaturation(0.3f)
+                    }
+                )
+            } else null
+        )
+
+        if (isProcessing || !imageLoaded) {
+            CircularProgressIndicator(
+                modifier = Modifier.align(Alignment.Center)
+            )
         }
     }
 }

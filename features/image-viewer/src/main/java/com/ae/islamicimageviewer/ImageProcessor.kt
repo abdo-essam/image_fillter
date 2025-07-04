@@ -7,51 +7,71 @@ import com.ae.islamicimageviewer.internal.FaceDetector
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+private const val TAG = "ImageProcessor"
+
 internal class ImageProcessor(private val context: Context) {
-    private val faceDetector = FaceDetector()
-    private val genderModel by lazy { GenderDetectionModel(context) }
+    private val faceDetector: FaceDetector
+    private val genderModel: GenderDetectionModel
+
+    init {
+        Log.d(TAG, "Initializing ImageProcessor")
+        try {
+            faceDetector = FaceDetector()
+            Log.d(TAG, "FaceDetector created")
+
+            genderModel = GenderDetectionModel(context)
+            Log.d(TAG, "GenderDetectionModel created")
+
+            Log.d(TAG, "ImageProcessor initialized successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to initialize ImageProcessor", e)
+            throw e
+        }
+    }
 
     data class ProcessingResult(
         val shouldBlur: Boolean,
         val reason: String? = null
     )
 
-    suspend fun processImage(bitmap: Bitmap): ProcessingResult = withContext(Dispatchers.Default) {
-        try {
-            Log.d("ImageProcessor", "Processing image of size: ${bitmap.width}x${bitmap.height}")
+    suspend fun processImage(bitmap: Bitmap): ProcessingResult {
+        return try {
+            Log.d(TAG, "Processing image of size: ${bitmap.width}x${bitmap.height}")
 
             val faces = faceDetector.detectFaces(bitmap)
-            Log.d("ImageProcessor", "Detected ${faces.size} faces")
+            Log.d(TAG, "Detected ${faces.size} faces")
 
             var femaleCount = 0
             var totalFaces = faces.size
 
-            for (face in faces) {
+            for ((index, face) in faces.withIndex()) {
                 try {
+                    Log.d(TAG, "Processing face $index")
                     val faceBitmap = cropFace(bitmap, face)
                     val genderResult = genderModel.detectGender(faceBitmap)
 
-                    Log.d("ImageProcessor", "Gender detection - Female: ${genderResult.isFemale}, Confidence: ${genderResult.confidence}")
+                    Log.d(TAG, "Face $index - Female: ${genderResult.isFemale}, Confidence: ${genderResult.confidence}")
 
                     if (genderResult.isFemale && genderResult.confidence > 0.6f) {
                         femaleCount++
                     }
                 } catch (e: Exception) {
-                    Log.e("ImageProcessor", "Error processing face", e)
+                    Log.e(TAG, "Error processing face $index", e)
                 }
             }
 
             val shouldBlur = femaleCount > 0
             val reason = when {
                 femaleCount > 0 -> "Detected $femaleCount female face(s)"
-                totalFaces == 0 -> null
-                else -> null
+                totalFaces == 0 -> "No faces detected"
+                else -> "All faces approved"
             }
 
+            Log.d(TAG, "Processing complete: shouldBlur=$shouldBlur, reason=$reason")
             ProcessingResult(shouldBlur, reason)
         } catch (e: Exception) {
-            Log.e("ImageProcessor", "Error in image processing", e)
-            ProcessingResult(false, null)
+            Log.e(TAG, "Error in image processing", e)
+            ProcessingResult(false, "Processing error: ${e.message}")
         }
     }
 
@@ -74,10 +94,11 @@ internal class ImageProcessor(private val context: Context) {
 
     fun cleanup() {
         try {
+            Log.d(TAG, "Cleaning up ImageProcessor")
             faceDetector.close()
             genderModel.close()
         } catch (e: Exception) {
-            Log.e("ImageProcessor", "Error during cleanup", e)
+            Log.e(TAG, "Error during cleanup", e)
         }
     }
 }
