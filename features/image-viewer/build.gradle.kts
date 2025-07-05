@@ -69,8 +69,12 @@ dependencies {
     implementation(libs.coil.compose)
 
     // TensorFlow Lite
-    implementation(libs.tensorflow.lite.v2140)
-    implementation(libs.tensorflow.lite.support.v044)
+    implementation(libs.tensorflow.lite.support)
+    implementation(libs.tensorflow.lite)
+
+    // Optional: GPU delegate
+    implementation(libs.tensorflow.lite.gpu)
+    implementation(libs.tensorflow.lite.gpu.delegate.plugin)
 
     // ML Kit Face Detection
     implementation(libs.face.detection)
@@ -87,10 +91,5 @@ dependencies {
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.ui.test.junit4)
-
-
-    implementation(libs.tensorflow.lite)
-    implementation(libs.tensorflow.lite.support)
-    implementation(libs.tensorflow.lite.gpu)
 
 }
