@@ -11,6 +11,42 @@ class TmdbRepository(
     private val apiService: TmdbApiService
 ) {
 
+    suspend fun getPopularMoviesPage(page: Int): Result<List<Movie>> {
+        return try {
+            val response = apiService.getPopularMovies(page)
+            Result.success(response.results)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getPopularPeoplePage(page: Int): Result<List<Person>> {
+        return try {
+            val response = apiService.getPopularPeople(page)
+            Result.success(response.results)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getTrendingPeoplePage(timeWindow: String = "week", page: Int): Result<List<Person>> {
+        return try {
+            val response = apiService.getTrendingPeople(timeWindow, page)
+            Result.success(response.results)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getTopRatedMoviesPage(page: Int): Result<List<Movie>> {
+        return try {
+            val response = apiService.getTopRatedMovies(page)
+            Result.success(response.results)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     fun getPopularMovies(page: Int = 1): Flow<List<Movie>> = flow {
         try {
             val response = apiService.getPopularMovies(page)
@@ -42,6 +78,7 @@ class TmdbRepository(
         const val IMAGE_BASE_URL = "https://image.tmdb.org/t/p/"
         const val POSTER_SIZE_W500 = "w500"
         const val PROFILE_SIZE_W500 = "w500"
+        const val BACKDROP_SIZE_W780 = "w780"
 
         fun getFullImageUrl(path: String?, size: String = POSTER_SIZE_W500): String {
             return if (path != null) {

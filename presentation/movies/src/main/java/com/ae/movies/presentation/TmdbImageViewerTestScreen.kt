@@ -1,3 +1,4 @@
+/*
 package com.ae.movies.presentation
 
 import androidx.compose.foundation.background
@@ -274,4 +275,4 @@ enum class ImageLoadState {
     SUCCESS,
     FILTERED,
     ERROR
-}
+}*/
