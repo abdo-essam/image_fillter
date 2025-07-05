@@ -249,7 +249,7 @@ private fun TmdbImageItem(testImage: TestImage) {
                             Text(
                                 text = "✓ Approved",
                                 style = AppTheme.typography.labelSmall,
-                                color = AppTheme.colors.primary,
+                                color = AppTheme.colors.success,
                                 modifier = Modifier.padding(top = 2.dp)
                             )
                         }

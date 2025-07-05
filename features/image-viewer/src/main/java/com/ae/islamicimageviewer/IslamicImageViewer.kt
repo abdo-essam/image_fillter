@@ -168,9 +168,9 @@ fun IslamicImageViewer(
         )
 
         if (processingState == ProcessingState.PROCESSING) {
-            CircularProgressIndicator(
+     /*       CircularProgressIndicator(
                 modifier = Modifier.align(Alignment.Center)
-            )
+            )*/
         }
     }
 }
