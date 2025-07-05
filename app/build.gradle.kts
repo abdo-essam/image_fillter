@@ -70,4 +70,18 @@ dependencies {
     implementation(project(":presentation:movies"))
     implementation(project(":core:design-system"))
     implementation(project(":features:image-viewer"))
+    implementation(project(":core:network"))
+
+    // Ktor
+    implementation(libs.ktor.client.android)
+    implementation(libs.ktor.serialization.kotlinx.json)
+    implementation(libs.ktor.client.logging)
+
+
+    // Kotlinx Serialization
+    implementation(libs.kotlinx.serialization.json)
+
+    // Koin
+    implementation(libs.koin.android)
+    implementation(libs.koin.core)
 }

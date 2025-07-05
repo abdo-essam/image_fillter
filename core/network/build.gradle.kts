@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -36,17 +37,15 @@ dependencies {
 
     implementation(libs.androidx.core.ktx)
 
-    // Ktor
+    // Ktor with Android-compatible logging
     implementation(libs.ktor.client.android)
     implementation(libs.ktor.client.content.negotiation)
     implementation(libs.ktor.serialization.kotlinx.json)
-    implementation(libs.ktor.client.logging)
-    implementation(libs.ktor.client.auth)
 
     // Serialization
     implementation(libs.kotlinx.serialization.json)
 
-    // Koin
+    // Koin for dependency injection
     implementation(libs.koin.android)
     implementation(libs.koin.core)
 
@@ -54,5 +53,8 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
 
     // Logging
-    implementation(libs.logback.classic)
+    implementation(libs.slf4j.nop)
+
+
+
 }
