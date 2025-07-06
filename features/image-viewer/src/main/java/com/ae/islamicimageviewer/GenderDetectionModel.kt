@@ -13,9 +13,7 @@ import org.tensorflow.lite.support.image.ops.ResizeOp
 private const val TAG = "GenderDetectionModel"
 
 internal class GenderDetectionModel(context: Context) {
-
     private val interpreter: Interpreter
-
     private val imageProcessor: ImageProcessor
 
     init {

@@ -4,8 +4,8 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.util.Log
 import com.ae.islamicimageviewer.internal.FaceDetector
-import com.ae.haram_blur.models.EnhancedGenderDetectionModel
 import com.ae.haram_blur.models.NsfwDetectionModel
+import com.ae.islamicimageviewer.GenderDetectionModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
@@ -17,7 +17,7 @@ class HaramBlurImageProcessor(
     private val settings: BlurSettings = BlurSettings()
 ) {
     private val faceDetector = FaceDetector()
-    private val genderModel by lazy { EnhancedGenderDetectionModel(context) }
+    private val genderModel by lazy { GenderDetectionModel(context) }
     private val nsfwModel by lazy { NsfwDetectionModel(context) }
 
     data class BlurSettings(
@@ -149,7 +149,7 @@ class HaramBlurImageProcessor(
         val rect = face.boundingBox
 
         // Add padding to include more context around the face
-        val padding = (rect.width() * 0.3).toInt()
+        val padding = (rect.width() * 0.1).toInt()
 
         val left = (rect.left - padding).coerceAtLeast(0)
         val top = (rect.top - padding).coerceAtLeast(0)

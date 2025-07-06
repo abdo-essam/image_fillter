@@ -11,7 +11,6 @@ private const val TAG = "ImageProcessor"
 internal class ImageProcessor(context: Context) {
 
     private val faceDetector: FaceDetector
-
     private val genderModel: GenderDetectionModel
 
     init {
@@ -59,7 +58,10 @@ internal class ImageProcessor(context: Context) {
 
                     val genderResult = genderModel.detectGender(faceBitmap)
 
-                    Log.d(TAG, "Face $index - Female: ${genderResult.isFemale}, Confidence: ${genderResult.confidence}")
+                    Log.d(
+                        TAG,
+                        "Face $index - Female: ${genderResult.isFemale}, Confidence: ${genderResult.confidence}"
+                    )
 
                     if (genderResult.isFemale && genderResult.confidence > 0.6f) {
                         femaleCount++
