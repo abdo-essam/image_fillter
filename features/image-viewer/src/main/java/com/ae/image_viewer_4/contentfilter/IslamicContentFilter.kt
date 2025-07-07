@@ -1,8 +1,5 @@
 package com.ae.image_viewer_4.contentfilter
 
-import android.graphics.Bitmap
-import com.ae.image_viewer_4.contentfilter.models.ContentClassification
-import com.google.mlkit.vision.face.Face
 
 internal class IslamicContentFilter {
 
@@ -19,7 +16,7 @@ internal class IslamicContentFilter {
         "necklace", "handbag", "purse", "heels", "feminine clothing"
     )
 
-    suspend fun shouldFilterContent(analysis: ContentDetector.ContentAnalysis): FilterResult {
+     fun shouldFilterContent(analysis: ContentDetector.ContentAnalysis): FilterResult {
         // Check if any female is detected in the image
         val femaleDetected = detectFemalePresence(analysis)
         if (femaleDetected != null) {

@@ -15,6 +15,7 @@ import org.tensorflow.lite.support.common.FileUtil
 import org.tensorflow.lite.support.image.TensorImage
 import org.tensorflow.lite.support.image.ops.ResizeOp
 import java.nio.ByteBuffer
+import androidx.core.graphics.createBitmap
 
 class ContentDetector {
     private var interpreter: Interpreter? = null
@@ -114,11 +115,7 @@ fun Drawable.toSafeBitmap(): Bitmap? {
             return this.bitmap
         }
         Log.d(TAG, "Creating software bitmap for drawable")
-        val bitmap = Bitmap.createBitmap(
-            intrinsicWidth.coerceAtLeast(1),
-            intrinsicHeight.coerceAtLeast(1),
-            Bitmap.Config.ARGB_8888
-        )
+        val bitmap = createBitmap(intrinsicWidth.coerceAtLeast(1), intrinsicHeight.coerceAtLeast(1))
         val canvas = Canvas(bitmap)
         setBounds(0, 0, canvas.width, canvas.height)
         draw(canvas)
