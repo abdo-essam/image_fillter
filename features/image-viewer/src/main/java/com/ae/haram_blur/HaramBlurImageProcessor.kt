@@ -25,7 +25,7 @@ class HaramBlurImageProcessor(
         val blurMales: Boolean = false,
         val useNsfwDetection: Boolean = true,
         val nsfwThreshold: Float = 0.3f,
-        val genderConfidenceThreshold: Float = 0.6f,
+        val genderConfidenceThreshold: Float = 0.7f,
         val strictMode: Boolean = false // In strict mode, blur if unsure
     )
 
@@ -132,7 +132,7 @@ class HaramBlurImageProcessor(
                     femalesDetected = femaleCount,
                     malesDetected = maleCount,
                     nsfwScore = nsfwResult?.inappropriateScore ?: 0f,
-                    isNsfw = nsfwResult?.isInappropriate ?: false
+                    isNsfw = nsfwResult?.isInappropriate == true
                 )
             )
         } catch (e: Exception) {
