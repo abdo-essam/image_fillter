@@ -96,7 +96,7 @@ internal class ImageProcessor(context: Context) {
     private fun cropFace(bitmap: Bitmap, face: FaceDetector.DetectedFace): Bitmap {
         val rect = face.boundingBox
 
-        val padding = (rect.width() * 0.1).toInt()
+        val padding = (rect.width() * 0.3).toInt()
 
         val left = (rect.left - padding).coerceAtLeast(0)
         val top = (rect.top - padding).coerceAtLeast(0)
