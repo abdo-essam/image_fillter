@@ -2,6 +2,7 @@ package com.ae.haram_blur
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.Rect
 import android.util.Log
 import com.ae.islamicimageviewer.internal.FaceDetector
 import com.ae.haram_blur.models.NsfwDetectionModel
@@ -40,8 +41,19 @@ class HaramBlurImageProcessor(
         val femalesDetected: Int = 0,
         val malesDetected: Int = 0,
         val nsfwScore: Float = 0f,
-        val isNsfw: Boolean = false
+        val isNsfw: Boolean = false,
+        val faceBoundingBoxes: List<FaceInfo> = emptyList()
     )
+
+    data class FaceInfo(
+        val boundingBox: Rect,
+        val gender: Gender,
+        val confidence: Float
+    )
+
+    enum class Gender {
+        MALE, FEMALE, UNCERTAIN
+    }
 
     suspend fun processImage(bitmap: Bitmap): ProcessingResult = withContext(Dispatchers.Default) {
         try {
@@ -60,6 +72,7 @@ class HaramBlurImageProcessor(
 
             val nsfwResult = nsfwDeferred.await()
             val faces = facesDeferred.await()
+            val faceInfoList = mutableListOf<FaceInfo>()
 
             Log.d(TAG, "Detected ${faces.size} faces")
 
@@ -71,7 +84,8 @@ class HaramBlurImageProcessor(
                     reason = "Inappropriate content detected",
                     detectionDetails = DetectionDetails(
                         nsfwScore = nsfwResult.inappropriateScore,
-                        isNsfw = true
+                        isNsfw = true,
+                        faceBoundingBoxes = faceInfoList
                     )
                 )
             }
@@ -86,26 +100,49 @@ class HaramBlurImageProcessor(
                     val faceBitmap = cropFace(bitmap, face)
                     val genderResult = genderModel.detectGender(faceBitmap)
 
-                    when {
+                    val gender = when {
                         genderResult.confidence < settings.genderConfidenceThreshold -> {
                             uncertainCount++
                             if (settings.strictMode) {
                                 // In strict mode, treat uncertain as female
                                 femaleCount++
                             }
+                            Gender.UNCERTAIN
                         }
-                        genderResult.isFemale -> femaleCount++
-                        else -> maleCount++
+                        genderResult.isFemale -> {
+                            femaleCount++
+                            Gender.FEMALE
+                        }
+                        else -> {
+                            maleCount++
+                            Gender.MALE
+                        }
                     }
 
-                    Log.d(TAG, "Face gender: ${if (genderResult.isFemale) "Female" else "Male"}, " +
-                            "Confidence: ${genderResult.confidence}")
+                    faceInfoList.add(
+                        FaceInfo(
+                            boundingBox = face.boundingBox,
+                            gender = gender,
+                            confidence = genderResult.confidence
+                        )
+                    )
+
+                    Log.d(TAG, "Face gender: $gender, Confidence: ${genderResult.confidence}")
                 } catch (e: Exception) {
                     Log.e(TAG, "Error processing face", e)
                     if (settings.strictMode) {
                         uncertainCount++
                         femaleCount++ // In strict mode, err on the side of caution
                     }
+
+                    // Still add the face with uncertain gender
+                    faceInfoList.add(
+                        FaceInfo(
+                            boundingBox = face.boundingBox,
+                            gender = Gender.UNCERTAIN,
+                            confidence = 0f
+                        )
+                    )
                 }
             }
 
@@ -132,7 +169,8 @@ class HaramBlurImageProcessor(
                     femalesDetected = femaleCount,
                     malesDetected = maleCount,
                     nsfwScore = nsfwResult?.inappropriateScore ?: 0f,
-                    isNsfw = nsfwResult?.isInappropriate == true
+                    isNsfw = nsfwResult?.isInappropriate == true,
+                    faceBoundingBoxes = faceInfoList
                 )
             )
         } catch (e: Exception) {

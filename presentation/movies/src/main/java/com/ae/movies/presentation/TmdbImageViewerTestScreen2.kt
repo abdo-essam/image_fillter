@@ -11,6 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
@@ -18,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ae.design_system.components.Text
 import com.ae.design_system.theme.AppTheme
+import com.ae.haram_blur.FaceBoxColors
 import com.ae.haram_blur.HaramBlurImageProcessor
 import com.ae.haram_blur.HaramImageViewer
 import com.ae.haram_blur.IslamicImageViewerConfig
@@ -254,17 +256,31 @@ private fun TmdbImageItem(
 ) {
     var imageLoadState by remember { mutableStateOf(ImageLoadState.LOADING) }
     var filterReason by remember { mutableStateOf<String?>(null) }
-    var detectionDetails by remember { mutableStateOf<HaramBlurImageProcessor.DetectionDetails?>(null) }
+    var detectionDetails by remember {
+        mutableStateOf<HaramBlurImageProcessor.DetectionDetails?>(
+            null
+        )
+    }
     var hasResult by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
 
-    // Configure HaramBlur settings
-    val imageConfig = remember {
+    // State to toggle face boxes
+    var showFaceBoxes by remember { mutableStateOf(true) }
+
+    // Configure HaramBlur settings with face box display
+    val imageConfig = remember(showFaceBoxes) {
         IslamicImageViewerConfig(
             enableFilter = true,
             blurStrength = 25f,
             allowClickToReveal = true,
             showBlurIcon = true,
+            showFaceBoxes = showFaceBoxes, // Enable face boxes
+            faceBoxColors = FaceBoxColors(
+                female = Color.Red.copy(alpha = 0.8f),
+                male = Color.Blue.copy(alpha = 0.8f),
+                uncertain = Color.Yellow.copy(alpha = 0.8f),
+                strokeWidth = 3f
+            ),
             blurSettings = HaramBlurImageProcessor.BlurSettings(
                 blurFemales = true,
                 blurMales = false,
@@ -284,7 +300,7 @@ private fun TmdbImageItem(
 
     Card(
         modifier = Modifier
-            .aspectRatio(if (testImage.type == ImageType.MOVIE_BACKDROP) 16f/9f else 2f/3f)
+            .aspectRatio(if (testImage.type == ImageType.MOVIE_BACKDROP) 16f / 9f else 2f / 3f)
             .clip(RoundedCornerShape(AppTheme.dimensions.cornerRadiusMedium)),
         shape = RoundedCornerShape(AppTheme.dimensions.cornerRadiusMedium),
         colors = CardDefaults.cardColors(containerColor = backgroundColor)
@@ -353,6 +369,13 @@ private fun TmdbImageItem(
                             onRemove()
                         }
                     )
+                    DropdownMenuItem(
+                        text = { Text(if (showFaceBoxes) "Hide Face Boxes" else "Show Face Boxes") },
+                        onClick = {
+                            showMenu = false
+                            showFaceBoxes = !showFaceBoxes
+                        }
+                    )
                 }
             }
 
@@ -390,6 +413,7 @@ private fun TmdbImageItem(
                                 )
                             }
                         }
+
                         ImageLoadState.FILTERED -> {
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally
@@ -427,6 +451,50 @@ private fun TmdbImageItem(
                                         color = AppTheme.colors.subtitle,
                                         modifier = Modifier.padding(top = 2.dp)
                                     )
+
+                                    // Show face detection breakdown with colors
+                                    if (details.faceBoundingBoxes.isNotEmpty()) {
+                                        Row(
+                                            horizontalArrangement = Arrangement.Center,
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.padding(top = 2.dp)
+                                        ) {
+                                            details.faceBoundingBoxes.groupBy { it.gender }
+                                                .forEach { (gender, faces) ->
+                                                    val color = when (gender) {
+                                                        HaramBlurImageProcessor.Gender.FEMALE -> Color.Red
+                                                        HaramBlurImageProcessor.Gender.MALE -> Color.Blue
+                                                        HaramBlurImageProcessor.Gender.UNCERTAIN -> Color.Yellow
+                                                    }
+                                                    val label = when (gender) {
+                                                        HaramBlurImageProcessor.Gender.FEMALE -> "F"
+                                                        HaramBlurImageProcessor.Gender.MALE -> "M"
+                                                        HaramBlurImageProcessor.Gender.UNCERTAIN -> "?"
+                                                    }
+
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .padding(horizontal = 2.dp)
+                                                            .background(
+                                                                color = color.copy(alpha = 0.2f),
+                                                                shape = RoundedCornerShape(4.dp)
+                                                            )
+                                                            .padding(
+                                                                horizontal = 4.dp,
+                                                                vertical = 2.dp
+                                                            )
+                                                    ) {
+                                                        Text(
+                                                            text = "${faces.size}$label",
+                                                            style = AppTheme.typography.labelSmall.copy(
+                                                                fontSize = 10.sp
+                                                            ),
+                                                            color = color
+                                                        )
+                                                    }
+                                                }
+                                        }
+                                    }
                                 }
 
                                 if (imageConfig.allowClickToReveal) {
@@ -439,14 +507,71 @@ private fun TmdbImageItem(
                                 }
                             }
                         }
+
                         ImageLoadState.SUCCESS -> {
-                            Text(
-                                text = "✓ Approved",
-                                style = AppTheme.typography.labelSmall,
-                                color = AppTheme.colors.primary,
-                                modifier = Modifier.padding(top = 2.dp)
-                            )
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "✓ Approved",
+                                    style = AppTheme.typography.labelSmall,
+                                    color = AppTheme.colors.primary,
+                                    modifier = Modifier.padding(top = 2.dp)
+                                )
+
+                                // Show face count even for approved images
+                                detectionDetails?.let { details ->
+                                    if (details.facesDetected > 0 && details.faceBoundingBoxes.isNotEmpty()) {
+                                        Row(
+                                            horizontalArrangement = Arrangement.Center,
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.padding(top = 2.dp)
+                                        ) {
+                                            Text(
+                                                text = "Detected: ",
+                                                style = AppTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                                color = AppTheme.colors.subtitle
+                                            )
+                                            details.faceBoundingBoxes.groupBy { it.gender }
+                                                .forEach { (gender, faces) ->
+                                                    val color = when (gender) {
+                                                        HaramBlurImageProcessor.Gender.FEMALE -> Color.Red
+                                                        HaramBlurImageProcessor.Gender.MALE -> Color.Blue
+                                                        HaramBlurImageProcessor.Gender.UNCERTAIN -> Color.Yellow
+                                                    }
+                                                    val label = when (gender) {
+                                                        HaramBlurImageProcessor.Gender.FEMALE -> "F"
+                                                        HaramBlurImageProcessor.Gender.MALE -> "M"
+                                                        HaramBlurImageProcessor.Gender.UNCERTAIN -> "?"
+                                                    }
+
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .padding(horizontal = 2.dp)
+                                                            .background(
+                                                                color = color.copy(alpha = 0.2f),
+                                                                shape = RoundedCornerShape(4.dp)
+                                                            )
+                                                            .padding(
+                                                                horizontal = 4.dp,
+                                                                vertical = 2.dp
+                                                            )
+                                                    ) {
+                                                        Text(
+                                                            text = "${faces.size}$label",
+                                                            style = AppTheme.typography.labelSmall.copy(
+                                                                fontSize = 10.sp
+                                                            ),
+                                                            color = color
+                                                        )
+                                                    }
+                                                }
+                                        }
+                                    }
+                                }
+                            }
                         }
+
                         ImageLoadState.ERROR -> {
                             Text(
                                 text = "❌ ${filterReason ?: "Error"}",
@@ -456,6 +581,18 @@ private fun TmdbImageItem(
                                 maxLines = 1
                             )
                         }
+                    }
+
+                    // Show face box toggle hint
+                    if ((imageLoadState == ImageLoadState.SUCCESS || imageLoadState == ImageLoadState.FILTERED) &&
+                        (detectionDetails?.facesDetected ?: 0) > 0
+                    ) {
+                        Text(
+                            text = if (showFaceBoxes) "Face boxes shown" else "Face boxes hidden",
+                            style = AppTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                            color = AppTheme.colors.subtitle.copy(alpha = 0.7f),
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
                     }
                 }
             }

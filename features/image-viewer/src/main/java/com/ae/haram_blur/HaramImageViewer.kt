@@ -1,9 +1,9 @@
 package com.ae.haram_blur
 
-
 import android.util.Log
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -17,16 +17,20 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import coil.request.SuccessResult
 import com.ae.islamicimageviewer.toBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -42,7 +46,16 @@ data class IslamicImageViewerConfig(
     val blurStrength: Float = 20f,
     val allowClickToReveal: Boolean = false,
     val showBlurIcon: Boolean = true,
+    val showFaceBoxes: Boolean = false,
+    val faceBoxColors: FaceBoxColors = FaceBoxColors(),
     val blurSettings: HaramBlurImageProcessor.BlurSettings = HaramBlurImageProcessor.BlurSettings()
+)
+
+data class FaceBoxColors(
+    val female: Color = Color.Red,
+    val male: Color = Color.Blue,
+    val uncertain: Color = Color.Yellow,
+    val strokeWidth: Float = 3f
 )
 
 /**
@@ -71,6 +84,10 @@ fun HaramImageViewer(
     var blurReason by remember(model) { mutableStateOf<String?>(null) }
     var detectionDetails by remember(model) { mutableStateOf<HaramBlurImageProcessor.DetectionDetails?>(null) }
     var isRevealed by remember(model) { mutableStateOf(false) }
+
+    // Add state for image size
+    var imageSize by remember { mutableStateOf(IntSize.Zero) }
+    var viewSize by remember { mutableStateOf(IntSize.Zero) }
 
     // Animated blur value for smooth transitions
     val animatedBlurRadius by animateFloatAsState(
@@ -106,18 +123,22 @@ fun HaramImageViewer(
     }
 
     Box(
-        modifier = modifier.then(
-            if (config.allowClickToReveal && shouldBlur) {
-                Modifier.clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null
-                ) {
-                    isRevealed = !isRevealed
-                }
-            } else {
-                Modifier
+        modifier = modifier
+            .onGloballyPositioned { coordinates ->
+                viewSize = coordinates.size
             }
-        )
+            .then(
+                if (config.allowClickToReveal && shouldBlur) {
+                    Modifier.clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        isRevealed = !isRevealed
+                    }
+                } else {
+                    Modifier
+                }
+            )
     ) {
         AsyncImage(
             model = ImageRequest.Builder(context)
@@ -131,6 +152,12 @@ fun HaramImageViewer(
                     onSuccess = { request, result ->
                         Log.d(TAG, "Image loaded successfully: $model")
 
+                        // Get image dimensions
+                        val bitmap = result.drawable.toBitmap()
+                        bitmap?.let {
+                            imageSize = IntSize(it.width, it.height)
+                        }
+
                         if (processingState == ProcessingState.NOT_STARTED &&
                             config.enableFilter &&
                             imageProcessor != null) {
@@ -141,7 +168,6 @@ fun HaramImageViewer(
                                 try {
                                     Log.d(TAG, "Starting HaramBlur processing for: $model")
 
-                                    val bitmap = (result as? SuccessResult)?.drawable?.toBitmap()
                                     if (bitmap != null) {
                                         Log.d(TAG, "Bitmap obtained: ${bitmap.width}x${bitmap.height}")
 
@@ -207,6 +233,22 @@ fun HaramImageViewer(
             } else null
         )
 
+        // Add face box overlay
+        if (config.showFaceBoxes &&
+            detectionDetails != null &&
+            detectionDetails!!.faceBoundingBoxes.isNotEmpty() &&
+            imageSize != IntSize.Zero &&
+            processingState == ProcessingState.COMPLETED) {
+
+            FaceBoxOverlay(
+                faceInfoList = detectionDetails!!.faceBoundingBoxes,
+                imageSize = imageSize,
+                viewSize = viewSize,
+                colors = config.faceBoxColors,
+                modifier = Modifier.matchParentSize()
+            )
+        }
+
         // Show loading indicator while processing
         if (processingState == ProcessingState.PROCESSING) {
             CircularProgressIndicator(
@@ -231,6 +273,51 @@ fun HaramImageViewer(
                     modifier = Modifier.fillMaxSize()
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun FaceBoxOverlay(
+    faceInfoList: List<HaramBlurImageProcessor.FaceInfo>,
+    imageSize: IntSize,
+    viewSize: IntSize,
+    colors: FaceBoxColors,
+    modifier: Modifier = Modifier
+) {
+    Canvas(modifier = modifier.fillMaxSize()) {
+        if (imageSize.width == 0 || imageSize.height == 0) return@Canvas
+
+        // Calculate scale factors
+        val scaleX = size.width / imageSize.width
+        val scaleY = size.height / imageSize.height
+
+        faceInfoList.forEach { faceInfo ->
+            val rect = faceInfo.boundingBox
+
+            // Scale the rectangle coordinates to match the displayed image size
+            val scaledLeft = rect.left * scaleX
+            val scaledTop = rect.top * scaleY
+            val scaledRight = rect.right * scaleX
+            val scaledBottom = rect.bottom * scaleY
+
+            val color = when (faceInfo.gender) {
+                HaramBlurImageProcessor.Gender.FEMALE -> colors.female
+                HaramBlurImageProcessor.Gender.MALE -> colors.male
+                HaramBlurImageProcessor.Gender.UNCERTAIN -> colors.uncertain
+            }
+
+            drawRect(
+                color = color,
+                topLeft = Offset(scaledLeft, scaledTop),
+                size = Size(
+                    scaledRight - scaledLeft,
+                    scaledBottom - scaledTop
+                ),
+                style = Stroke(
+                    width = colors.strokeWidth.dp.toPx()
+                )
+            )
         }
     }
 }
