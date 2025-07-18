@@ -17,7 +17,7 @@ class HaramBlurImageProcessor(
     private val context: Context,
     private val settings: BlurSettings = BlurSettings()
 ) {
-    private val faceDetector = FaceDetector()
+    private val faceDetector = FaceDetector(context)
     private val genderModel by lazy { EnhancedGenderDetectionModel(context) }
     private val nsfwModel by lazy { NsfwDetectionModel(context) }
 

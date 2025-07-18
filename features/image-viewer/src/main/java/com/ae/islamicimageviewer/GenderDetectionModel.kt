@@ -16,6 +16,8 @@ internal class GenderDetectionModel(context: Context) {
     private val interpreter: Interpreter
     private val imageProcessor: ImageProcessor
 
+
+
     init {
         try {
             Log.d(TAG, "Loading model from assets")

@@ -16,7 +16,7 @@ internal class ImageProcessor(context: Context) {
     init {
         Log.d(TAG, "Initializing ImageProcessor")
         try {
-            faceDetector = FaceDetector()
+            faceDetector = FaceDetector(context)
             Log.d(TAG, "FaceDetector created")
 
             genderModel = GenderDetectionModel(context)

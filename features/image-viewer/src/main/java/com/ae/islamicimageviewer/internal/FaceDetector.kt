@@ -1,53 +1,44 @@
 package com.ae.islamicimageviewer.internal
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Rect
-import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.face.FaceDetection
-import com.google.mlkit.vision.face.FaceDetectorOptions
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
+import android.util.Log
+import org.tensorflow.lite.DataType
+import org.tensorflow.lite.Interpreter
+import org.tensorflow.lite.support.common.FileUtil
+import org.tensorflow.lite.support.common.ops.NormalizeOp
+import org.tensorflow.lite.support.image.ImageProcessor
+import org.tensorflow.lite.support.image.TensorImage
+import org.tensorflow.lite.support.image.ops.ResizeOp
+import kotlin.math.max
+import kotlin.math.min
 
-internal class FaceDetector {
+private const val TAG = "FaceDetector"
 
-    private val options = FaceDetectorOptions.Builder()
-        .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
-        .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_NONE) // No classification needed
-        .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_NONE) // No landmarks needed
-        .setMinFaceSize(0.1f) // Detect smaller faces
-        .build()
+internal class FaceDetector(private val context: Context) {
 
-    private val detector = FaceDetection.getClient(options)
+    private val blazeFaceDetector = BlazeFaceDetector(context)
 
-    /**
-     * Asynchronously detects faces in a given bitmap.
-     * Returns a list of detected faces, each with only the bounding box info.
-     */
-    suspend fun detectFaces(bitmap: Bitmap): List<DetectedFace> = suspendCancellableCoroutine { cont ->
-        val image = InputImage.fromBitmap(bitmap, 0)
+    suspend fun detectFaces(bitmap: Bitmap): List<DetectedFace> {
+        return try {
+            val blazeFaceResults = blazeFaceDetector.detectFaces(bitmap)
 
-        detector.process(image)
-            .addOnSuccessListener { faces ->
-                val results = faces.map { face ->
-                    DetectedFace(face.boundingBox)
-                }
-                cont.resume(results)
+            // Convert BlazeFace results to FaceDetector.DetectedFace
+            blazeFaceResults.map { blazeFace ->
+                DetectedFace(
+                    boundingBox = blazeFace.boundingBox
+                )
             }
-            .addOnFailureListener { exception ->
-                cont.resumeWithException(exception)
-            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error detecting faces", e)
+            emptyList()
+        }
     }
 
-    /**
-     * Clean up the detector when no longer needed.
-     */
     fun close() {
-        detector.close()
+        blazeFaceDetector.close()
     }
 
-    /**
-     * Our custom simplified Face data class — only contains the bounding box of the face.
-     */
     data class DetectedFace(val boundingBox: Rect)
 }
