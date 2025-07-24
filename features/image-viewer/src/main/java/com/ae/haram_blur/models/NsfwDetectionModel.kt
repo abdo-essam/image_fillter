@@ -31,6 +31,7 @@ internal class NsfwDetectionModel(context: Context) {
     init {
         try {
             Log.d(TAG, "Loading NSFW model from assets")
+           // val modelBuffer = FileUtil.loadMappedFile(context, "nsfw_classifier.tflite")
             val modelBuffer = FileUtil.loadMappedFile(context, "nsfw_model.tflite")
 
             // Initialize interpreter with more memory
