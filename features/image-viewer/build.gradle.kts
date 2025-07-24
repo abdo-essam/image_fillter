@@ -83,6 +83,9 @@ dependencies {
     implementation(libs.image.labeling)
     implementation(libs.image.labeling.custom)
 
+    implementation(libs.tasks.vision)
+    implementation(libs.tasks.core)
+
 
     // Coroutines support for Play Services
     implementation(libs.kotlinx.coroutines.play.services)

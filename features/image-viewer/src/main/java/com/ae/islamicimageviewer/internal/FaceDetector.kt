@@ -4,32 +4,42 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Rect
 import android.util.Log
-import org.tensorflow.lite.DataType
-import org.tensorflow.lite.Interpreter
-import org.tensorflow.lite.support.common.FileUtil
-import org.tensorflow.lite.support.common.ops.NormalizeOp
-import org.tensorflow.lite.support.image.ImageProcessor
-import org.tensorflow.lite.support.image.TensorImage
-import org.tensorflow.lite.support.image.ops.ResizeOp
-import kotlin.math.max
-import kotlin.math.min
+import com.google.mediapipe.framework.image.BitmapImageBuilder
+import com.google.mediapipe.framework.image.MPImage
+import com.google.mediapipe.tasks.core.BaseOptions
+import com.google.mediapipe.tasks.vision.core.RunningMode
+import com.google.mediapipe.tasks.vision.facedetector.FaceDetector
+import com.google.mediapipe.tasks.vision.facedetector.FaceDetectorResult
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 private const val TAG = "FaceDetector"
 
-internal class FaceDetector(private val context: Context) {
+internal class FaceDetector(context: Context) {
 
-    private val blazeFaceDetector = BlazeFaceDetector(context)
+    private val blazeFaceDetector = MediaPipeFaceDetector(context)
 
-    suspend fun detectFaces(bitmap: Bitmap): List<DetectedFace> {
-        return try {
-            val blazeFaceResults = blazeFaceDetector.detectFaces(bitmap)
+    init {
+        // Initialize the detector with default settings
+        blazeFaceDetector.setupFaceDetector()
+    }
 
-            // Convert BlazeFace results to FaceDetector.DetectedFace
-            blazeFaceResults.map { blazeFace ->
+    suspend fun detectFaces(bitmap: Bitmap): List<DetectedFace> = withContext(Dispatchers.Default) {
+        try {
+            val result = blazeFaceDetector.detectFaces(bitmap)
+
+            // Convert MediaPipe results to FaceDetector.DetectedFace
+            result?.detections()?.map { detection ->
+                val boundingBox = detection.boundingBox()
                 DetectedFace(
-                    boundingBox = blazeFace.boundingBox
+                    boundingBox = Rect(
+                        boundingBox.left.toInt(),
+                        boundingBox.top.toInt(),
+                        boundingBox.right.toInt(),
+                        boundingBox.bottom.toInt()
+                    )
                 )
-            }
+            } ?: emptyList()
         } catch (e: Exception) {
             Log.e(TAG, "Error detecting faces", e)
             emptyList()

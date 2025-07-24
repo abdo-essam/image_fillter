@@ -17,9 +17,9 @@ class HaramBlurImageProcessor(
     private val context: Context,
     private val settings: BlurSettings = BlurSettings()
 ) {
-    //private val faceDetector = FaceDetector(context)
-    //private val genderModel by lazy { EnhancedGenderDetectionModel(context) }
-    private val nsfwModel by lazy { NsfwDetectionModel(context) }
+    private val faceDetector = FaceDetector(context)
+    private val genderModel by lazy { EnhancedGenderDetectionModel(context) }
+    //private val nsfwModel by lazy { NsfwDetectionModel(context) }
 
     data class BlurSettings(
         val blurFemales: Boolean = true,
@@ -60,24 +60,24 @@ class HaramBlurImageProcessor(
             Log.d(TAG, "Processing image with HaramBlur algorithm")
 
             // Run NSFW detection and face detection in parallel
-            val nsfwDeferred = async {
+     /*       val nsfwDeferred = async {
                 if (settings.useNsfwDetection) {
                     nsfwModel.detectNsfw(bitmap)
                 } else null
             }
-
-         /*   val facesDeferred = async {
+*/
+            val facesDeferred = async {
                 faceDetector.detectFaces(bitmap)
-            }*/
+            }
 
-            val nsfwResult = nsfwDeferred.await()
-            //val faces = facesDeferred.await()
+            //val nsfwResult = nsfwDeferred.await()
+            val faces = facesDeferred.await()
             val faceInfoList = mutableListOf<FaceInfo>()
 
           //  Log.d(TAG, "Detected ${faces.size} faces")
 
             // Check NSFW first
-            if (nsfwResult != null && nsfwResult.isInappropriate) {
+     /*       if (nsfwResult != null && nsfwResult.isInappropriate) {
                 Log.d(TAG, "NSFW content detected with score: ${nsfwResult.inappropriateScore}")
                 return@withContext ProcessingResult(
                     shouldBlur = true,
@@ -89,13 +89,13 @@ class HaramBlurImageProcessor(
                     )
                 )
             }
-
+*/
             // Process faces for gender detection
             var femaleCount = 0
             var maleCount = 0
             var uncertainCount = 0
 
-      /*      for (face in faces) {
+           for (face in faces) {
                 try {
                     val faceBitmap = cropFace(bitmap, face)
                     val genderResult = genderModel.detectGender(faceBitmap)
@@ -144,7 +144,7 @@ class HaramBlurImageProcessor(
                         )
                     )
                 }
-            }*/
+            }
 
             // Determine if we should blur
             val shouldBlur = when {
@@ -165,11 +165,11 @@ class HaramBlurImageProcessor(
                 shouldBlur = shouldBlur,
                 reason = reason,
                 detectionDetails = DetectionDetails(
-                    facesDetected = 0,
+                    facesDetected = faces.size,
                     femalesDetected = femaleCount,
                     malesDetected = maleCount,
-                    nsfwScore = nsfwResult?.inappropriateScore ?: 0f,
-                    isNsfw = nsfwResult?.isInappropriate == true,
+                   // nsfwScore = nsfwResult?.inappropriateScore ?: 0f,
+                   // isNsfw = nsfwResult?.isInappropriate == true,
                     faceBoundingBoxes = faceInfoList
                 )
             )
@@ -203,9 +203,9 @@ class HaramBlurImageProcessor(
     fun cleanup() {
         try {
             Log.d(TAG, "Cleaning up HaramBlur processor")
-           // faceDetector.close()
+            faceDetector.close()
            // genderModel.close()
-            nsfwModel.close()
+           // nsfwModel.close()
         } catch (e: Exception) {
             Log.e(TAG, "Error during cleanup", e)
         }
